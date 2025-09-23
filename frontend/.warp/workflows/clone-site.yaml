@@ -1,0 +1,8 @@
+name: clone-site
+shortcuts: ["/clone-site"]
+description: Clone a website landing page into React components
+command: npm run clone -- {{url}}
+parameters:
+  - name: url
+    description: The full URL to clone (e.g. https://example.com)
+    default_value: https://example.com
