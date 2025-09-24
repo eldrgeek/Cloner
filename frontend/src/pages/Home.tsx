@@ -69,13 +69,19 @@ export default function Home() {
             <ul>
               {registry.map((entry: any) => (
                 <li key={entry.slug}>
-                  <Link to={`/${entry.slug}`}>{entry.title || entry.slug}</Link>
-                  <span style={{ marginLeft: 8, opacity: 0.7 }}>({entry.baseUrl})</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <Link to={`/${entry.slug}`}>{entry.title || entry.slug}</Link>
+                    <span style={{ marginLeft: 4, opacity: 0.7 }}>({entry.baseUrl})</span>
+                    <span style={{ marginLeft: 8, opacity: 0.6 }}>|</span>
+                    <a href={entry.baseUrl} target="_blank" rel="noreferrer">Open original</a>
+                    <span style={{ opacity: 0.6 }}>/</span>
+                    <Link to={`/${entry.slug}`}>Open clone</Link>
+                  </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p>No clones yet. Use the Components Checklist or run <code>npm run clone -- https://example.com</code>.</p>
+            <p>No clones yet. Use the Components Checklist or run <code>npm run clone:site -- https://example.com</code>.</p>
           )}
         </div>
 
