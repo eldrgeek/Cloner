@@ -161,6 +161,11 @@ During Clone or Optimize the agent can also:
 3) Blocklist analytics domains during capture? (Don't understand')
 4) Crawl depth for initial batch landing-only
 
+## Verification and Console Checks
+- After cloning, open the original and local clone and capture console messages.
+- Fix errors/warnings that are present only in the clone.
+- Verify hero/media tiles and grid/flex layouts; ensure no mixed-origin asset URLs.
+
 ## Acceptance Criteria (Initial)
 
 - /clone-site:
