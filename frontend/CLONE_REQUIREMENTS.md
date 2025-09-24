@@ -53,8 +53,12 @@ Key difference: /clone-site is multi-step and agent-driven using Playwright via 
    - src/clones/manifest.ts: baseUrl, landingPath, pages array with cloned flags
 6) Checklist route (/__components__):
    - Lists discovered pages with the landing page marked ✅
+   - Sections:
+     - Pages: selectable list of discovered same-origin pages
+     - External assets: selectable list of cross-origin assets (from DOM and CSS) discovered during capture
    - Buttons: "Clone", "Optimize", "Done"
    - Clone: agent iterates selected pages, navigates via MCP, repeats capture, and updates artifacts/routes/manifest
+   - Pull External Assets: when user checks external assets and clicks Clone, agent downloads those assets into src/clones/<slug>/assets/external, updates assets-map and assets-manifest.json, and rewrites references accordingly (DOM via assets-map at runtime; CSS by updating styles.css url(...) to local paths).
    - Optimize: agent proposes CSS/site-structure optimizations and refactors common components; user approves changes before applying
 
 During Clone or Optimize the agent can also:
@@ -76,6 +80,8 @@ During Clone or Optimize the agent can also:
     - <route>.tsx (for each discovered route; e.g., pages/blog.tsx)
 - src/clones/routes.ts (AUTO-GENERATED; list of { path, Component })
 - src/clones/manifest.ts (AUTO-GENERATED; baseUrl, landingPath, pages)
+- src/clones/<slug>/assets-map.ts (AUTO-GENERATED; absolute URL → bundled URL map for DOM rewrites)
+- src/clones/<slug>/assets-manifest.json (AUTO-GENERATED; records DOM and CSS asset references and localization status)
 - src/pages/ComponentsChecklist.tsx (hidden route UI: /__components__)
 - src/pages/Home.tsx (existing home page)
 
@@ -102,6 +108,15 @@ During Clone or Optimize the agent can also:
   - useEffect: rewrite asset URLs to local assets/ (for same-origin) and keep remote references for cross-origin; intercept internal link clicks (pushState + popstate)
   - Stubs: minimal components for discovered routes
   - Routing: cloneRoutes imported into App.tsx and mapped to <Route>
+
+- Asset policy (DOM + CSS):
+  - Same-origin assets: downloaded automatically into src/clones/<slug>/assets and referenced via the assets-map.
+  - Cross-origin assets: NOT downloaded automatically. They are collected and listed in the /__components__ checklist under an "External assets" section so the user can choose which ones to pull down later.
+  - CSS processing: linked stylesheets are fetched; url(...) and @import references are rewritten to absolute URLs based on each stylesheet’s origin. Same-origin CSS assets are auto-downloaded; cross-origin CSS assets are added to the checklist.
+  - External asset storage: when user opts in, cross-origin assets are downloaded into src/clones/<slug>/assets/external/ and references are rewritten to local paths.
+- Reference mapping: maintain src/clones/<slug>/assets-manifest.json to avoid grep. It records each asset’s origin and where it is referenced:
+    - DOM references (by absolute URL; runtime replacement via assets-map in Landing.tsx)
+    - CSS references (DECISION): group by stylesheet URL. For each stylesheet, track entries { originalToken, absoluteUrl, occurrences }. This preserves base-href context and allows precise, deterministic rewrites in styles.css when external assets are later localized. For inline <style> blocks, use pseudo-URLs inline:<index> as stylesheet identifiers.
 
 - Theming (/clone-theme):
   - Extract colors via CSS parsing and computed style sampling
@@ -150,12 +165,13 @@ During Clone or Optimize the agent can also:
 
 - /clone-site:
   - /<slug> renders a faithful landing page with styles
-  - /__components__ lists discovered pages; landing ✅
+  - /__components__ lists:
+    - Pages (landing page marked ✅)
+    - External assets (cross-origin) available for optional download
   - Selected pages can be cloned; stubs and routes added
-- /clone-theme: ***Not in scope
-
-
-## Next Steps
+  - When external assets are selected, they are pulled down into src/clones/<slug>/assets/external, assets-map and assets-manifest.json are updated, and references are rewritten (DOM via runtime map; CSS by updating styles.css)
+- Safety:
+  - No destructive edits; all generated under src/clones/
 
 - Review my changes and integrate. Ask any new questions
 - Implement the agent-led flow with MCP, using helpers for deterministic tasks

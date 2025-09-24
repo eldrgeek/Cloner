@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import '../App.css'
+import registry from '../clones/registry.json'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
 
 interface HealthStatus {
   status: string;
@@ -58,6 +60,22 @@ export default function Home() {
               <p>Status: {health.status}</p>
               <p>Version: {health.version}</p>
             </div>
+          )}
+        </div>
+
+        <div className="features">
+          <h2>Cloned Sites</h2>
+          {Array.isArray(registry) && registry.length > 0 ? (
+            <ul>
+              {registry.map((entry: any) => (
+                <li key={entry.slug}>
+                  <Link to={`/${entry.slug}`}>{entry.title || entry.slug}</Link>
+                  <span style={{ marginLeft: 8, opacity: 0.7 }}>({entry.baseUrl})</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No clones yet. Use the Components Checklist or run <code>npm run clone -- https://example.com</code>.</p>
           )}
         </div>
 

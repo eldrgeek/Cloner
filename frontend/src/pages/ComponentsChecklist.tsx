@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { manifest } from '../clones/manifest'
 
 interface SelectablePage {
@@ -33,6 +34,9 @@ export default function ComponentsChecklist() {
 
   return (
     <div>
+      <div style={{ marginBottom: 12 }}>
+        <Link to="/">← Back to Home</Link>
+      </div>
       <h2>Discovered Pages</h2>
       <p>Base URL: <code>{manifest.baseUrl}</code></p>
       <ul style={{ listStyle: 'none', padding: 0 }}>

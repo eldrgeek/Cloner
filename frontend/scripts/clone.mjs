@@ -139,8 +139,8 @@ async function main() {
   await writeFile(path.join(targetDir, 'assets-map.ts'), assetsMapTs, 'utf-8')
 
   // Generate Landing component with local asset rewrites
-  const landingComponent = `import React, { useEffect, useRef } from 'react'
-import './styles.css'
+const landingComponent = `import { useEffect, useRef } from 'react'
+import cssText from './styles.css?raw'
 import { assetMap } from './assets-map'
 
 export default function Landing() {
@@ -184,7 +184,10 @@ export default function Landing() {
   }, [])
 
   return (
-    <div ref={containerRef} dangerouslySetInnerHTML={{ __html: ${JSON.stringify(bodyHTML)} }} />
+    <>
+      <style dangerouslySetInnerHTML={{ __html: cssText }} />
+      <div ref={containerRef} dangerouslySetInnerHTML={{ __html: ${JSON.stringify(bodyHTML)} }} />
+    </>
   )
 }
 `
@@ -217,6 +220,21 @@ export default function Landing() {
   // Update clones/manifest.ts
   const manifestTs = `// AUTO-GENERATED\nexport interface PageEntry { path: string; cloned: boolean }\nexport interface Manifest { baseUrl: string; landingPath: string; pages: PageEntry[] }\n\nexport const manifest: Manifest = {\n  baseUrl: ${JSON.stringify(base.origin)},\n  landingPath: '/',\n  pages: [\n    { path: '/${slug}', cloned: true },\n${anchorPaths.filter(p => p !== '/').map(p => `    { path: '${p}', cloned: false }`).join(',\n')}\n  ]\n}\n`
   await writeFile(path.join(clonesDir, 'manifest.ts'), manifestTs, 'utf-8')
+
+  // Update clones/registry.json
+  try {
+    const regPath = path.join(clonesDir, 'registry.json')
+    let current = []
+    try {
+      const data = await (await import('fs/promises')).readFile(regPath, 'utf-8')
+      current = JSON.parse(data)
+    } catch {}
+    const entry = { slug, baseUrl: base.origin, title: title || slug }
+    const idx = current.findIndex((e) => e.slug === slug)
+    if (idx >= 0) current[idx] = entry
+    else current.push(entry)
+    await writeFile(regPath, JSON.stringify(current, null, 2), 'utf-8')
+  } catch {}
 
   // Done
   console.log(`Cloned ${title || url} -> /${slug}`)
