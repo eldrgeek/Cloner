@@ -85,9 +85,10 @@ async function main() {
   // Give dynamic sections a moment to render
   await page.waitForTimeout(400)
 
-  const [bodyHTML, title] = await Promise.all([
+  const [bodyHTML, title, bodyClasses] = await Promise.all([
     page.evaluate(() => document.body.innerHTML),
-    page.title()
+    page.title(),
+    page.evaluate(() => document.body.className || '')
   ])
 
   // Collect styles
@@ -200,15 +201,21 @@ import { assetMap } from './assets-map'
 
 export default function Landing() {
   const containerRef = useRef(null as null | HTMLDivElement)
+  const ORIG_BODY_CLASSES = "${bodyClasses.replace(/"/g, '\\"')}"
 
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
+
+    // Temporarily apply original body classes to better match theme CSS
+    const cls = (ORIG_BODY_CLASSES || '').split(/\s+/).filter(Boolean)
+    cls.forEach(c => document.body.classList.add(c))
+
+    const cleanupBody = () => { cls.forEach(c => document.body.classList.remove(c)) }
     const ABS = ${JSON.stringify(base.origin)}
-    const toAbs = (v: string | null) => {
-      if (!v) return v
-      try { return new URL(v, ABS).toString() } catch { return v }
-    }
+    const isAbsUrl = (v: string | null) => !!v && /^(https?:|data:|blob:)/i.test(v)
+    const looksLocal = (v: string | null) => !!v && (v.startsWith('/src/clones/') || v.startsWith('./assets/') || v.startsWith('/assets/') || v.includes('/src/clones/'))
+    const absAgainst = (v: string, baseHref: string) => { try { return new URL(v, baseHref).toString() } catch { return v } }
 
     // Promote lazy-load attributes to eager so content is visible without site JS
     const promoteLazyAttributes = () => {
@@ -235,7 +242,7 @@ export default function Landing() {
         if (val && !el.style.backgroundImage) {
           const abs = toAbs(val) as string
           const mapped = (assetMap as any)[abs] || abs
-          el.style.backgroundImage = `url(${mapped})`
+          el.style.backgroundImage = 'url(' + mapped + ')'
         }
       })
     }
@@ -243,11 +250,18 @@ export default function Landing() {
     const rewriteAttr = (el: Element, attr: 'src'|'href'|'poster') => {
       const cur = el.getAttribute(attr)
       if (!cur) return
-      const abs = toAbs(cur) as string
-      const mapped = (assetMap as any)[abs]
+      // For mapping, try resolving against original site to match assetMap keys
+      const key = isAbsUrl(cur) ? cur : absAgainst(cur, ABS)
+      const mapped = (assetMap as any)[key]
       const anyEl = el as any
-      if (mapped) anyEl[attr] = mapped
-      else anyEl[attr] = abs
+      if (mapped) {
+        anyEl[attr] = mapped
+        return
+      }
+      // Otherwise, preserve local paths and avoid mixing with original origin
+      if (looksLocal(cur)) { anyEl[attr] = cur; return }
+      if (!isAbsUrl(cur)) { anyEl[attr] = absAgainst(cur, location.href); return }
+      anyEl[attr] = cur
     }
 
     const rewriteSrcSet = (el: Element) => {
@@ -256,9 +270,15 @@ export default function Landing() {
       const parts = cur.split(',').map(s => s.trim()).filter(Boolean)
       const remapped = parts.map(part => {
         const [url, desc] = part.split(/\s+/, 2)
-        const abs = toAbs(url) as string
-        const mapped = (assetMap as any)[abs] || abs
-        return desc ? `${mapped} ${desc}` : mapped
+        const key = isAbsUrl(url) ? url : absAgainst(url, ABS)
+        const mapped = (assetMap as any)[key]
+        if (mapped) return desc ? (mapped + ' ' + desc) : mapped
+        if (looksLocal(url)) return part
+        if (!isAbsUrl(url)) {
+          const locAbs = absAgainst(url, location.href)
+          return desc ? (locAbs + ' ' + desc) : locAbs
+        }
+        return part
       }).join(', ')
       el.setAttribute('srcset', remapped)
     }
@@ -283,6 +303,8 @@ export default function Landing() {
         }
       } catch {}
     })
+
+    return () => { cleanupBody() }
   }, [])
 
   return (
