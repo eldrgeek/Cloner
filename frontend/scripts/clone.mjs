@@ -211,7 +211,8 @@ export default function Landing() {
     const cls = (ORIG_BODY_CLASSES || '').split(/\s+/).filter(Boolean)
     cls.forEach(c => document.body.classList.add(c))
 
-    const cleanupBody = () => { cls.forEach(c => document.body.classList.remove(c)) }
+    // Note: avoid removing classes on unmount to prevent visible flash in React StrictMode dev
+    const cleanupBody = () => { /* no-op to keep classes applied */ }
     const ABS = ${JSON.stringify(base.origin)}
     const isAbsUrl = (v: string | null) => !!v && /^(https?:|data:|blob:)/i.test(v)
     const looksLocal = (v: string | null) => !!v && (v.startsWith('/src/clones/') || v.startsWith('./assets/') || v.startsWith('/assets/') || v.includes('/src/clones/'))
@@ -310,7 +311,11 @@ export default function Landing() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: cssText }} />
-      <div ref={containerRef} dangerouslySetInnerHTML={{ __html: ${JSON.stringify(bodyHTML)} }} />
+      {/* Optional debug overlay: show console-like errors if ?__debug=1 */}
+      {typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('__debug') && (
+        <div style={{position:'fixed',bottom:0,left:0,right:0,maxHeight:200,overflow:'auto',background:'rgba(0,0,0,0.8)',color:'#fff',fontSize:12,padding:8,zIndex:99999}} id="__clone_debug_overlay">Debug overlay active. Check console for details.</div>
+      )}
+      <div ref={containerRef} dangerouslySetInnerHTML={{ __html: 
     </>
   )
 }
