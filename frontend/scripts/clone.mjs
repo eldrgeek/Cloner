@@ -209,6 +209,37 @@ export default function Landing() {
       if (!v) return v
       try { return new URL(v, ABS).toString() } catch { return v }
     }
+
+    // Promote lazy-load attributes to eager so content is visible without site JS
+    const promoteLazyAttributes = () => {
+      // imgs
+      container.querySelectorAll('img').forEach((img) => {
+        const el = img as HTMLImageElement
+        const ds = el.getAttribute('data-src') || el.getAttribute('data-lazy-src')
+        if (!el.getAttribute('src') && ds) el.setAttribute('src', ds)
+        const dss = el.getAttribute('data-srcset') || el.getAttribute('data-lazy-srcset')
+        if (!el.getAttribute('srcset') && dss) el.setAttribute('srcset', dss)
+      })
+      // picture/source
+      container.querySelectorAll('source').forEach((src) => {
+        const el = src as HTMLSourceElement
+        const dss = el.getAttribute('data-srcset') || el.getAttribute('data-lazy-srcset')
+        if (!el.getAttribute('srcset') && dss) el.setAttribute('srcset', dss)
+        const ds = el.getAttribute('data-src') || el.getAttribute('data-lazy-src')
+        if (!el.getAttribute('src') && ds) el.setAttribute('src', ds)
+      })
+      // background images via data-bg / data-background / data-background-image
+      container.querySelectorAll('[data-bg], [data-background], [data-background-image]').forEach((node) => {
+        const el = node as HTMLElement
+        const val = el.getAttribute('data-bg') || el.getAttribute('data-background') || el.getAttribute('data-background-image')
+        if (val && !el.style.backgroundImage) {
+          const abs = toAbs(val) as string
+          const mapped = (assetMap as any)[abs] || abs
+          el.style.backgroundImage = `url(${mapped})`
+        }
+      })
+    }
+
     const rewriteAttr = (el: Element, attr: 'src'|'href'|'poster') => {
       const cur = el.getAttribute(attr)
       if (!cur) return
@@ -218,8 +249,24 @@ export default function Landing() {
       if (mapped) anyEl[attr] = mapped
       else anyEl[attr] = abs
     }
-    container.querySelectorAll('img').forEach((el) => rewriteAttr(el, 'src'))
-    container.querySelectorAll('source').forEach((el) => rewriteAttr(el, 'src'))
+
+    const rewriteSrcSet = (el: Element) => {
+      const cur = el.getAttribute('srcset')
+      if (!cur) return
+      const parts = cur.split(',').map(s => s.trim()).filter(Boolean)
+      const remapped = parts.map(part => {
+        const [url, desc] = part.split(/\s+/, 2)
+        const abs = toAbs(url) as string
+        const mapped = (assetMap as any)[abs] || abs
+        return desc ? `${mapped} ${desc}` : mapped
+      }).join(', ')
+      el.setAttribute('srcset', remapped)
+    }
+
+    promoteLazyAttributes()
+
+    container.querySelectorAll('img').forEach((el) => { rewriteAttr(el, 'src'); rewriteSrcSet(el) })
+    container.querySelectorAll('source').forEach((el) => { rewriteAttr(el, 'src'); rewriteSrcSet(el) })
     container.querySelectorAll('video').forEach((el) => { rewriteAttr(el, 'src'); rewriteAttr(el, 'poster') })
     container.querySelectorAll('audio').forEach((el) => rewriteAttr(el, 'src'))
 
