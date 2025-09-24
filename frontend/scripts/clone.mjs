@@ -26,9 +26,45 @@ async function main() {
   if (!existsSync(pagesDir)) await mkdir(pagesDir, { recursive: true })
 
   const browser = await chromium.launch()
-  const context = await browser.newContext()
+  const context = await browser.newContext({ viewport: { width: 1400, height: 900 } })
   const page = await context.newPage()
   await page.goto(url, { waitUntil: 'networkidle' })
+
+  // Try to accept cookie consent if present
+  try {
+    const selectors = [
+      'button[aria-label*="Accept" i]',
+      'button:has-text("Accept All")',
+      'button:has-text("Accept")',
+      '#onetrust-accept-btn-handler',
+      'button#onetrust-accept-btn-handler',
+      'button[aria-label*="Agree" i]'
+    ]
+    for (const sel of selectors) {
+      const found = await page.$(sel)
+      if (found) { await found.click({ timeout: 1000 }).catch(()=>{}); break }
+    }
+  } catch {}
+
+  // Auto-scroll to trigger lazy-loading
+  try {
+    await page.evaluate(async () => {
+      const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+      const total = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)
+      let y = 0
+      const step = Math.ceil(window.innerHeight * 0.75)
+      while (y < total) {
+        window.scrollTo(0, y)
+        await sleep(120)
+        y += step
+      }
+      window.scrollTo(0, total)
+      await sleep(300)
+    })
+  } catch {}
+
+  // Give dynamic sections a moment to render
+  await page.waitForTimeout(400)
 
   const [bodyHTML, title] = await Promise.all([
     page.evaluate(() => document.body.innerHTML),

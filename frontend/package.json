@@ -14,7 +14,8 @@
     "playwright:codegen": "playwright codegen localhost:5173",
     "mcp:playwright": "npx @playwright/mcp@latest",
     "clone": "node scripts/clone.mjs",
-    "clone:compare": "node scripts/clone-compare.mjs"
+    "clone:compare": "node scripts/clone-compare.mjs",
+    "clone:site": "node scripts/clone-site.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",
