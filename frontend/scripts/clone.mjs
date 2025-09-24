@@ -27,8 +27,27 @@ async function main() {
 
   const browser = await chromium.launch()
   const context = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+
+  // Block common analytics/trackers that can keep the network busy indefinitely
+  try {
+    const blocked = [
+      'googletagmanager.com', 'google-analytics.com', 'g.doubleclick.net',
+      'posthog.com', 'i.posthog.com', 'us.i.posthog.com',
+      'segment.com', 'fullstory.com', 'hotjar.com', 'intercom.io',
+      'getkoala.com', 'cdn.vector.co', 'facebook.com', 'connect.facebook.net'
+    ]
+    await context.route('**/*', route => {
+      const u = route.request().url()
+      if (blocked.some(d => u.includes(d))) return route.abort('blockedbyclient')
+      return route.continue()
+    })
+  } catch {}
+
   const page = await context.newPage()
-  await page.goto(url, { waitUntil: 'networkidle' })
+  // Use a more forgiving wait strategy: get DOM quickly, then stabilize
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 })
+  // Best-effort stabilization without hanging forever
+  await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
 
   // Try to accept cookie consent if present
   try {
